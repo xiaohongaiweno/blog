@@ -29,7 +29,7 @@ paginate: 20
 
 #### Site
 title : xiaohongaiweno
-tagline: A fresh looking and responsive theme for xiaohongaiweno
+#tagline: A fresh looking and responsive theme for xiaohongaiweno
 assets: /assets
 url:
 baseurl:
