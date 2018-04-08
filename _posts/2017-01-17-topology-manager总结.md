@@ -1,0 +1,339 @@
+---
+layout: post
+title: topology-manager总结
+tags:
+- ODL控制器
+- SDN开发
+categories: SDN开发
+description: 鉴于网上对于sdn开发相关的资料较少又乱的现状，从这篇文章开始，我将陆续分享我在sdn开发过程中的经验。
+---
+
+**topology-manager总结**
+
+#### 0前言
+
+topology-manager模块也是作为openflowplugin的应用层程序（APP），位于openflowplugin-release-lithium-sr3文件夹的applications当中，负责处理operational数据库下的network-topology:network-topology数据节点（datastore数据库）的增删改查，例如odl控制器发现加一台主机host，新加主机与交换机的link链接等。显示拓扑的前端需要从该数据节点上获取主机或者交换机节点数据才能绘制网络拓扑图，构成拓扑图来源有两方面，一方面是通过LLDP发现的switch设备以及相关link连接，另一外面是通过L2switch的hosttracker模块发现的挂在switch上的host主机以及相关连接。
+
+#### 1 YANG数据模型
+
+network-topology:network-topology数据节点是直接使用了外部ietf-topology定义的yang文件，主要的数据树结构为：
+
+container network-topology {
+
+        list topology {
+
+            description &quot;
+
+                This is the model of an abstract topology.
+
+                A topology contains nodes and links.
+
+                Each topology MUST be identified by
+
+                unique topology-id for reason that a network could contain many
+
+                topologies.&quot;;
+
+            key &quot;topology-id&quot;;
+
+            leaf topology-id {
+
+                type topology-id;
+
+                description &quot;
+
+                    It is presumed that a datastore will contain many topologies. To
+
+                    distinguish between topologies it is vital to have UNIQUE
+
+                    topology identifiers.&quot;;
+
+            }
+
+            list node {
+
+                description &quot;The list of network nodes defined for the topology.&quot;;
+
+                key &quot;node-id&quot;;
+
+                uses node-attributes;
+
+                must &quot;boolean(../underlay-topology[\*]/node[./supporting-nodes/node-ref])&quot;;
+
+                    // This constraint is meant to ensure that a referenced node is in fact
+
+                    // a node in an underlay topology.
+
+                list termination-point {
+
+                    description
+
+                        &quot;A termination point can terminate a link.
+
+                        Depending on the type of topology, a termination point could,
+
+                        for example, refer to a port or an interface.&quot;;
+
+                    key &quot;tp-id&quot;;
+
+                    uses tp-attributes;
+
+                }
+
+            }
+
+            list link {
+
+                description &quot;
+
+                    A Network Link connects a by Local (Source) node and
+
+                    a Remote (Destination) Network Nodes via a set of the
+
+                    nodes&#39; termination points.
+
+                    As it is possible to have several links between the same
+
+                    source and destination nodes, and as a link could potentially
+
+                    be re-homed between termination points, to ensure that we
+
+                    would always know to distinguish between links, every link
+
+                    is identified by a dedicated link identifier.
+
+                    Note that a link models a point-to-point link, not a multipoint
+
+                    link.
+
+                    Layering dependencies on links in underlay topologies are
+
+                    not represented as the layering information of nodes and of
+
+                    termination points is sufficient.&quot;;
+
+                key &quot;link-id&quot;;
+
+                uses link-attributes;
+
+                must &quot;boolean(../underlay-topology/link[./supporting-link])&quot;;
+
+                    // Constraint: any supporting link must be part of an underlay topology
+
+                must &quot;boolean(../node[./source/source-node])&quot;;
+
+                    // Constraint: A link must have as source a node of the same topology
+
+                must &quot;boolean(../node[./destination/dest-node])&quot;;
+
+                    // Constraint: A link must have as source a destination of the same topology
+
+                must &quot;boolean(../node/termination-point[./source/source-tp])&quot;;
+
+                    // Constraint: The source termination point must be contained in the source node
+
+                must &quot;boolean(../node/termination-point[./destination/dest-tp])&quot;;
+
+                    // Constraint: The destination termination point must be contained
+
+                    // in the destination node
+
+            }
+
+        }
+
+#### 2相关依赖
+
+在topology-manager的处理流程需要依赖两条主线，第一是在applications文件夹下的topology-lldp-discovery模块会处理交换机与交换机的link连接(大概流程是lldp-speaker发送lldp报文探测新加入的设备是否为openflow交换机，如果是交换机则由topology-lldp-discovery处理并发出link发现的通告)，因此topology-lldp-discovery模块会发出两类通告FlowTopologyDiscoveryListener：
+
+onLinkDiscovered    //链接添加
+
+onLinkRemoved     //链接移除
+
+第二是topology-manager需要监听Nodes/Node/NodeConnector/FlowCapableNodeConnector和Nodes/Node/NodeConnector/FlowCapableNode数据的变化，此数据就是在inventory-manager模块添加的交换机信息节点，所以当inventory-manager模块新加或者移除一台交换机节点时，会触发Nodes/Node/NodeConnector/FlowCapableNodeConnector
+
+以及Nodes/Node/NodeConnector/FlowCapableNode数据节点的变化，进而引起topology-manager模块进入
+
+processAddedTerminationPoints
+
+processUpdatedTerminationPoints
+
+processRemovedTerminationPoints
+
+processAddedNode
+
+processRemovedNode
+
+处理流程。
+
+#### 3代码流程
+
+topology-manager的入口在TopologyLldpDiscoveryImplModule.java文件的createInstance()函数，进入该函数后new出FlowCapableTopologyProvider对象，然后注册FlowTopologyDiscoveryListener通告的接收器FlowCapableTopologyExporter，同时设置监听Nodes/Node/NodeConnector/FlowCapableNodeConnector
+
+以及Nodes/Node/NodeConnector/FlowCapableNode的数据变化，
+
+先分析FlowTopologyDiscoveryListener通告的接收器FlowCapableTopologyExporter。
+
+###### 3.1 onLinkDiscovered事件
+
+当控制器通过LLDP发现新加的设备与现有设备存在一条链路时（交换机与交换机之间的链路），会触发onLinkDiscovered函数的调用，将该link保存在数据库当中。
+
+public void onLinkDiscovered(final LinkDiscovered notification) {
+
+        processor.enqueueOperation(new TopologyOperation() {
+
+            @Override
+
+            public void applyOperation(final ReadWriteTransaction transaction) {
+
+                //构造network-topology的link数据
+
+                final Link link = toTopologyLink(notification);
+
+                //数据应该存放的数据树节点位置
+
+                final InstanceIdentifier&lt;Link&gt; path = TopologyManagerUtil.linkPath(link, iiToTopology);
+
+                transaction.merge(LogicalDatastoreType.OPERATIONAL, path, link, true);
+
+            }
+
+            @Override
+
+            public String toString() {
+
+                return &quot;onLinkDiscovered&quot;;
+
+            }
+
+        });
+
+    }
+
+###### 3.2 onLinkRemoved事件
+
+当上述链接断开之后，就会触发onLinkRemoved函数的调用，将之前保存在数据库当中的link信息删除。
+
+public void onLinkRemoved(final LinkRemoved notification) {
+
+        processor.enqueueOperation(new TopologyOperation() {
+
+            @Override
+
+            public void applyOperation(final ReadWriteTransaction transaction) {
+
+                Optional&lt;Link&gt; linkOptional = Optional.absent();
+
+                try {
+
+                    // read that checks if link exists (if we do not do this we might get an exception on delete)
+
+                    linkOptional = transaction.read(LogicalDatastoreType.OPERATIONAL,
+
+                            TopologyManagerUtil.linkPath(toTopologyLink(notification), iiToTopology)).checkedGet();
+
+                } catch (ReadFailedException e) {
+
+                    LOG.warn(&quot;Error occured when trying to read Link: {}&quot;, e.getMessage());
+
+                    LOG.debug(&quot;Error occured when trying to read Link.. &quot;, e);
+
+                }
+
+                //删除network-topology下的link数据
+
+                if (linkOptional.isPresent()) {
+
+                    transaction.delete(LogicalDatastoreType.OPERATIONAL, TopologyManagerUtil.linkPath(toTopologyLink(notification), iiToTopology));
+
+                }
+
+            }
+
+            @Override
+
+            public String toString() {
+
+                return &quot;onLinkRemoved&quot;;
+
+            }
+
+        });
+
+    }
+
+###### 3.3 FlowCapableNode数据变化事件
+
+再来分析监听Nodes/Node/NodeConnector/FlowCapableNode的数据变化的NodeChangeListenerImpl，当Nodes/Node/NodeConnector/FlowCapableNode的数据发生变化（inventory-manager当中新加/删除一台交换机节点），会触发NodeChangeListenerImpl的onDataChanged函数调用，在该函数当中调用了以下两个函数
+
+processAddedNode(change.getCreatedData());
+
+processRemovedNode(change.getRemovedPaths());
+
+两个函数在自己内部判断是否是节点添加/删除事件，最终将交换机节点信息写入network-topology数据树当中。
+
+protected void createData(final InstanceIdentifier&lt;?&gt; iiToNodeInInventory) {
+
+        final NodeId nodeIdInTopology = provideTopologyNodeId(iiToNodeInInventory);
+
+        if (nodeIdInTopology != null) {
+
+            final InstanceIdentifier&lt;org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.network.topology.topology.Node&gt; iiToTopologyNode = provideIIToTopologyNode(nodeIdInTopology);
+
+            //写入network-topology数据树
+
+            sendToTransactionChain(prepareTopologyNode(nodeIdInTopology, iiToNodeInInventory), iiToTopologyNode);
+
+        } else {
+
+            LOG.debug(&quot;Inventory node key is null. Data can&#39;t be written to topology&quot;);
+
+        }
+
+    }
+
+###### 3.4 FlowCapableNodeConnector数据变化事件
+
+最后分析Nodes/Node/NodeConnector/FlowCapableNodeConnector的数据监听类TerminationPointChangeListenerImpl，当Nodes/Node/NodeConnector/FlowCapableNodeConnector数据发生变化时，会触发onDataChanged函数调用
+
+processAddedTerminationPoints(change.getCreatedData());
+
+processUpdatedTerminationPoints(change.getUpdatedData());
+
+processRemovedTerminationPoints(change.getRemovedPaths());
+
+类似的，上述3个函数也是内部判断是否是数据新加/更新/删除事件，假如是新加事件，则调用createData函数将TerminationPoint写入network-topology数据树。
+
+protected void createData(final InstanceIdentifier&lt;?&gt; iiToNodeInInventory, final DataObject data) {
+
+        TpId terminationPointIdInTopology = provideTopologyTerminationPointId(iiToNodeInInventory);
+
+        if (terminationPointIdInTopology != null) {
+
+            InstanceIdentifier&lt;TerminationPoint&gt; iiToTopologyTerminationPoint = provideIIToTopologyTerminationPoint(
+
+                    terminationPointIdInTopology, iiToNodeInInventory);
+
+            TerminationPoint point = prepareTopologyTerminationPoint(terminationPointIdInTopology, iiToNodeInInventory);
+
+            sendToTransactionChain(point, iiToTopologyTerminationPoint);
+
+            if (data instanceof FlowCapableNodeConnector) {
+
+                removeLinks((FlowCapableNodeConnector) data, point);
+
+            }
+
+        } else {
+
+            LOG.debug(&quot;Inventory node connector key is null. Data can&#39;t be written to topology termination point&quot;);
+
+        }
+
+}
+
+#### 4总结
+
+对于前端需要显示的拓扑信息是由network-topology数据节点提供的，在network-topology数据节点下存在两类数据，一种是Link，一种是node，此时的node包括主机host和switch节点，host节点id是以host：开头，而switch节点的id是以openflow：开头，这个跟inventory数据节点的node是不一样的。
+
+另外当switch设备（node）down掉之后，NodeChangeListenerImpl的processRemovedNode函数会将该node节点移除，同时与之相关的link（比如之前已在该node下发现host主机），并且会引起hosttracker当中的HostTrackerImpl删除该switch下的host主机，这样在拓扑上就不会有孤立的主机节点，但是该hosttracker还存在bug（已提交到odlbug系统），使用mininet测试，一旦模拟的host数量过多（200多个）时，down掉switch，会有1-2个host节点残余在拓扑上，通过代码和log查看，并不是调用删除处有问题，而是调用的odl基础框架有问题，还在进一步跟踪当中。
