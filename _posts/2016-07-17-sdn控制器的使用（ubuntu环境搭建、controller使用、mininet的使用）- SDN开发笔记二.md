@@ -185,3 +185,8 @@ mn --controller=remote,ip=192.168.65.129,port=6653
 mininet控制台除了上述的pingall、dump还有其他有用的命令，比如net、ovs-ofctl、link等命令，在mininet上使用？就可以显示所有命令，命令详情请自行google一下。
 
 下一篇文章将介绍《odl源码编译生成发行版控制器》，平时上班时间太忙，抱歉让大家久等了。
+
+![ 我要小额赞助，鼓励作者写出更好的教程](https://raw.githubusercontent.com/xiaohongaiweno/blog/master/assets/img/%E5%BE%AE%E4%BF%A1%E6%94%AF%E4%BB%98%E7%A0%81.png)
+
+
+![ 我要小额赞助，鼓励作者写出更好的教程](https://raw.githubusercontent.com/xiaohongaiweno/blog/master/assets/img/%E6%94%AF%E4%BB%98%E5%AE%9D%E6%94%B6%E6%AC%BE%E7%A0%81.png)
