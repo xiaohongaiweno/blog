@@ -8,10 +8,6 @@ categories: SDN开发
 description: 鉴于网上对于sdn开发相关的资料较少又乱的现状，从这篇文章开始，我将陆续分享我在sdn开发过程中的经验。
 ---
 
-**inventory-manager总结**
-
-#### 0前言
-
 inventory-manager模块作为openflowplugin的应用层程序（可理解成odl的APP），位于openflowplugin-release-lithium-sr3文件夹的applications当中，负责处理operational数据库下的opendaylight-inventory数据节点（datastore数据库）的增删改查，比如odl控制器新加一台openflow交换机或者移除一台交换机。同时opendaylight-inventory数据节点还为前端提供数据支撑。
 
 #### 1 YANG数据模型
@@ -345,3 +341,10 @@ public synchronized void onNodeConnectorUpdated(final NodeConnectorUpdated conne
 #### 4总结
 
  inventory-manager作为ODL的APP形式管理inventory节点信息，位于Openflowplguin的applications文件夹，而Openflowplguin模块当中的applications是建立在Openflowplguin基础模块之上的，比如openflowplugin-impl、openflowplugin等，由Openflowplguin基础模块处理好openflow协议最后发出node新加、更新、删除等通告。
+ 
+
+
+![ 我要小额赞助，鼓励作者写出更好的教程](https://raw.githubusercontent.com/xiaohongaiweno/blog/master/assets/img/%E5%BE%AE%E4%BF%A1%E6%94%AF%E4%BB%98%E7%A0%81.png)
+
+
+![ 我要小额赞助，鼓励作者写出更好的教程](https://raw.githubusercontent.com/xiaohongaiweno/blog/master/assets/img/%E6%94%AF%E4%BB%98%E5%AE%9D%E6%94%B6%E6%AC%BE%E7%A0%81.png)

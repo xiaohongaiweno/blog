@@ -8,10 +8,6 @@ categories: SDN开发
 description: 鉴于网上对于sdn开发相关的资料较少又乱的现状，从这篇文章开始，我将陆续分享我在sdn开发过程中的经验。
 ---
 
-**topology-manager总结**
-
-#### 0前言
-
 topology-manager模块也是作为openflowplugin的应用层程序（APP），位于openflowplugin-release-lithium-sr3文件夹的applications当中，负责处理operational数据库下的network-topology:network-topology数据节点（datastore数据库）的增删改查，例如odl控制器发现加一台主机host，新加主机与交换机的link链接等。显示拓扑的前端需要从该数据节点上获取主机或者交换机节点数据才能绘制网络拓扑图，构成拓扑图来源有两方面，一方面是通过LLDP发现的switch设备以及相关link连接，另一外面是通过L2switch的hosttracker模块发现的挂在switch上的host主机以及相关连接。
 
 #### 1 YANG数据模型
@@ -337,3 +333,10 @@ protected void createData(final InstanceIdentifier&lt;?&gt; iiToNodeInInventory,
 对于前端需要显示的拓扑信息是由network-topology数据节点提供的，在network-topology数据节点下存在两类数据，一种是Link，一种是node，此时的node包括主机host和switch节点，host节点id是以host：开头，而switch节点的id是以openflow：开头，这个跟inventory数据节点的node是不一样的。
 
 另外当switch设备（node）down掉之后，NodeChangeListenerImpl的processRemovedNode函数会将该node节点移除，同时与之相关的link（比如之前已在该node下发现host主机），并且会引起hosttracker当中的HostTrackerImpl删除该switch下的host主机，这样在拓扑上就不会有孤立的主机节点，但是该hosttracker还存在bug（已提交到odlbug系统），使用mininet测试，一旦模拟的host数量过多（200多个）时，down掉switch，会有1-2个host节点残余在拓扑上，通过代码和log查看，并不是调用删除处有问题，而是调用的odl基础框架有问题，还在进一步跟踪当中。
+
+
+
+![ 我要小额赞助，鼓励作者写出更好的教程](https://raw.githubusercontent.com/xiaohongaiweno/blog/master/assets/img/%E5%BE%AE%E4%BF%A1%E6%94%AF%E4%BB%98%E7%A0%81.png)
+
+
+![ 我要小额赞助，鼓励作者写出更好的教程](https://raw.githubusercontent.com/xiaohongaiweno/blog/master/assets/img/%E6%94%AF%E4%BB%98%E5%AE%9D%E6%94%B6%E6%AC%BE%E7%A0%81.png)

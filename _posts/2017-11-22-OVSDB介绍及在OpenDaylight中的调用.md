@@ -8,10 +8,6 @@ categories: SDN开发
 description: 鉴于网上对于sdn开发相关的资料较少又乱的现状，从这篇文章开始，我将陆续分享我在sdn开发过程中的经验。
 ---
 
-# OVSDB总结
-
-## OVS介绍
-
 OVS是一种开源的软件交换机，可安装于通用的虚拟服务器环境中，在虚拟环境中单个、多个物理机上的不同虚拟主机都需要通过OVS实现数据交换。
 
  OVS包含三个重要的组件：ovsdb-server、ovs-vswitchd、以及OVS内核模块，
@@ -159,3 +155,9 @@ ovs-vsctl show  可以看到ovsdb在监听控制器的连接（设备是服务�
 
 在E:\ovsdb-test\ovsdb-release-lithium-sr3\resources\commons\ Ovsdb-Southbound-Collection-for-Single-Node-Cluster.json.postman\_collection 是设置好的postman环境，可以直接采用。
 
+
+
+![ 我要小额赞助，鼓励作者写出更好的教程](https://raw.githubusercontent.com/xiaohongaiweno/blog/master/assets/img/%E5%BE%AE%E4%BF%A1%E6%94%AF%E4%BB%98%E7%A0%81.png)
+
+
+![ 我要小额赞助，鼓励作者写出更好的教程](https://raw.githubusercontent.com/xiaohongaiweno/blog/master/assets/img/%E6%94%AF%E4%BB%98%E5%AE%9D%E6%94%B6%E6%AC%BE%E7%A0%81.png)

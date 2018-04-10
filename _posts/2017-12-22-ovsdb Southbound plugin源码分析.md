@@ -7,9 +7,6 @@ tags:
 categories: SDN开发
 description: 鉴于网上对于sdn开发相关的资料较少又乱的现状，从这篇文章开始，我将陆续分享我在sdn开发过程中的经验。
 ---
-
-**OVSDB Southbound plugin源码分析**
-
 ## Architecture and Operation
 
  OVSDB南向插件主要负责与底层设备（OVSDB node）打交道，采用OVSDB管理协议，每一个底层设备都被当成一个OVSDB node，而OVSDB南向插件被当成OVSDB manager，对于OVSDB manager而言，OVSDB manager与OVSDB node的连接有主动和被动两种方式。比如，在ovs设备上输入命令：ovs-vsctl set-manager tcp:192.168.7.103:6640 表示OVSDB manager处于被动连接方式，而输入命令：ovs-vsctl set-manager ptcp:6640  表示OVSDB manager处于主动连接方式。下面分别对于上述两个命令做介绍:
@@ -522,3 +519,10 @@ public void run() {
 ## 总结
 
 Ovsdb协议用于设备与odl控制器交互，比如创建bridge、创建port等，目前还有些ovsdb字段并未反馈到odl控制器，可以按照需要自行添加。
+
+
+
+![ 我要小额赞助，鼓励作者写出更好的教程](https://raw.githubusercontent.com/xiaohongaiweno/blog/master/assets/img/%E5%BE%AE%E4%BF%A1%E6%94%AF%E4%BB%98%E7%A0%81.png)
+
+
+![ 我要小额赞助，鼓励作者写出更好的教程](https://raw.githubusercontent.com/xiaohongaiweno/blog/master/assets/img/%E6%94%AF%E4%BB%98%E5%AE%9D%E6%94%B6%E6%AC%BE%E7%A0%81.png)
