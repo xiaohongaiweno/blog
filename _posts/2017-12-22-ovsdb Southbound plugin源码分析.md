@@ -7,7 +7,7 @@ tags:
 categories: SDN开发
 description: 鉴于网上对于sdn开发相关的资料较少又乱的现状，从这篇文章开始，我将陆续分享我在sdn开发过程中的经验。
 ---
-## Architecture and Operation
+Architecture and Operation
  OVSDB南向插件主要负责与底层设备（OVSDB node）打交道，采用OVSDB管理协议，每一个底层设备都被当成一个OVSDB node，而OVSDB南向插件被当成OVSDB manager，对于OVSDB manager而言，OVSDB manager与OVSDB node的连接有主动和被动两种方式。比如，在ovs设备上输入命令：ovs-vsctl set-manager tcp:192.168.7.103:6640 表示OVSDB manager处于被动连接方式，而输入命令：ovs-vsctl set-manager ptcp:6640  表示OVSDB manager处于主动连接方式。下面分别对于上述两个命令做介绍:
 
 1、ovs上输入ovs-vsctl set-manager tcp:&lt;IP address&gt;:6640   OVSDB manager采用被动模式，在odl控制器当中会发生以下一些系列操作

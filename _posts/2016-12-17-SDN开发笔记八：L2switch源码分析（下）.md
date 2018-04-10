@@ -7,9 +7,7 @@ tags:
 categories: SDN开发
 description: 鉴于网上对于sdn开发相关的资料较少又乱的现状，从这篇文章开始，我将陆续分享我在sdn开发过程中的经验。
 ---
-
-## ArpHandler模块
-
+ArpHandler模块
 Arphandler模块主要是处理openflow交换机以packetin方式上送的arp报文，在54-arphandler.xml配置文件当中有一个设置开关，可以设置arp报文的两种处理方式，一种是is-proactive-flood-mode（主动flood模式），如果设置为true，则new一个ProactiveFloodFlowWriter，而该类实现了OpendaylightInventoryListener以及DataChangeListener接口，针对每一个up的交换机端口安装Flood 流表，如果一个数据包没有匹配其他任意的流表那么这个包就会被广播出去。
 
 如果is-proactive-flood-mode设置为false，则new一个InitialFlowWriter，该类实现了OpendaylightInventoryListener，当发生onNodeUpdated事件之后，每台交换机上安装一个把所有Arp包送到控制器的流（addInitialFlows），同时new一个ArpPacketHandler，用于处理控制器发送来的ARP包，而ArpPacketHandler采用PacketDispatcher发送arp回网络（包括单播sendPacketOut与泛洪floodPacket）。而采用InventoryReader来决定给哪个连接的节点发送数据包。
