@@ -21,11 +21,11 @@
     {%if i == paginator.page %}
     <span class="page-number current">{{ i }}</span>
     {% else %}
-    <a class="page-number" href="/blog/page{{ i }}">{{ i }}</a>
+    <a class="page-number" href="/page{{ i }}">{{ i }}</a>
     {% endif %}
     {% endfor %}
     {% if paginator.next_page %}
-    <a class="extend next" rel="next" href="{{ paginator.next_page_path }}">下一页<span></span></a>
+    <a class="extend next" rel="next" href="/blog{{ paginator.next_page_path }}">下一页<span></span></a>
     {% endif %}
   </nav>
   </nav>
