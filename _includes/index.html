@@ -25,7 +25,7 @@
     {% endif %}
     {% endfor %}
     {% if paginator.next_page %}
-    <a class="extend next" rel="next" href="{{ paginator.next_page_path | prepend: site.baseurl | replace: '//', '/' }}">下一页<span></span></a>
+    <a class="extend next" rel="next" href="{{ paginator.next_page_path }}">下一页<span></span></a>
     {% endif %}
   </nav>
   </nav>
