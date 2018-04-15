@@ -27,6 +27,8 @@ defaults:
 #### Pagination
 paginate: 10
 
+paginate_path: "blog/page:num"
+
 #### Site
 title : xiaohongaiweno
 tagline: 热爱技术，热爱生活
