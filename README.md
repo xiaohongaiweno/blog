@@ -81,4 +81,4 @@ bundle exec jekyll server
 
 支付宝捐赠链接还是要有的，万一真的有人捐呢。
 
-![支付宝扫码捐赠](http://p1.bpimg.com/567571/9a4a158daee8aa69.png)
+![支付宝扫码捐赠](https://raw.githubusercontent.com/xiaohongaiweno/blog/master/assets/img/%E6%94%AF%E4%BB%98%E5%AE%9D%E6%94%B6%E6%AC%BE%E7%A0%81.png)
