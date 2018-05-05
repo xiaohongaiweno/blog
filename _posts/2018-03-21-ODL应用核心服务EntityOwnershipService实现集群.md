@@ -8,11 +8,11 @@ categories: SDN开发
 description: 鉴于网上对于sdn开发相关的资料较少又乱的现状，从这篇文章开始，我将陆续分享我在sdn开发过程中的经验。
 ---
 集群下开发的app采用md-sal模式。
-1. EntityOwnershipService服务简介
+1 EntityOwnershipService服务简介
 
 EntityOwnershipService是一个通用的服务，所有app都可以自己注册一个全集群唯一的entity，在YANG MODEL中引入EntityOwnershipService服务，注册registerCandidate以及registerListener，从而实现多集群实例下的选主操作，并在集群当中的主（master）出现故障时，处理新主实例的升主操做，提高app的可用性。
 
-2. 使用EntityOwnershipService
+2 使用EntityOwnershipService
 
 2.1)Yang model引入EntityOwnershipService
 
