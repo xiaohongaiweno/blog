@@ -14,7 +14,7 @@ EntityOwnershipService是一个通用的服务，所有app都可以自己注册�
 
 2. 使用EntityOwnershipService
 
-2. 1)Yang model引入EntityOwnershipService
+2.1)Yang model引入EntityOwnershipService
 
 在mutiple-impl中的yang引入EntityOwnershipService，增加对entityownerservice的引用。
 
