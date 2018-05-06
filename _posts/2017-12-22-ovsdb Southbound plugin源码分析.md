@@ -117,6 +117,7 @@ public synchronized boolean startOvsdbManager(final int ovsdbListenPort) {
 从上述代码可以看出新建连接是单例形式，即注册的控制器与设备连接handler（被动模式）只能有一个，同时还支持SSL加密安全。
 
 <pre>
+<code>
 
 private static void ovsdbManagerWithSsl(int port, final SSLContext sslContext) {
         EventLoopGroup bossGroup = new NioEventLoopGroup();
@@ -177,7 +178,8 @@ private static void ovsdbManagerWithSsl(int port, final SSLContext sslContext) {
             workerGroup.shutdownGracefully();
         }
     }
-	
+
+</code>
 </pre>
 
 
