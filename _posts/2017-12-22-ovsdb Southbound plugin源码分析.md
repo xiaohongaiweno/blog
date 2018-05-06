@@ -117,6 +117,7 @@ public synchronized boolean startOvsdbManager(final int ovsdbListenPort) {
 
 <pre>
 <code>
+
 private static void ovsdbManagerWithSsl(int port, final SSLContext sslContext) {
         EventLoopGroup bossGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
@@ -229,6 +230,7 @@ public void createTransactInvokers() {
 
 <pre>
 <code>
+
    @Override
     public ListenableFuture<List<String>> getDatabases() {
         return rpc.list_dbs();
@@ -241,6 +243,7 @@ public void createTransactInvokers() {
 
 <pre>
 <code>
+
 private void registerEntityForOwnership(OvsdbConnectionInstance ovsdbConnectionInstance) {
         Entity candidateEntity = getEntityFromConnectionInstance(ovsdbConnectionInstance);
         if (entityOwnershipService.isCandidateRegistered(candidateEntity)) {
@@ -318,6 +321,7 @@ private void registerEntityForOwnership(OvsdbConnectionInstance ovsdbConnectionI
 
 <pre>
 <code>
+
 private void monitorAllTables(String database, DatabaseSchema dbSchema) {
         Set<String> tables = dbSchema.getTables();
         if (tables != null) {
@@ -354,6 +358,7 @@ txInvoker.invoke(new OvsdbOperationalCommandAggregator(key, result, dbSchema));è
 
 <pre>
 <code>
+
 public void run() {
         while (runTask.get()) {
             forgetSuccessfulTransactions();
