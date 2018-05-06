@@ -109,6 +109,7 @@ public synchronized boolean startOvsdbManager(final int ovsdbListenPort) {
         }
 }
 
+
 </code>
 </pre>
 
@@ -175,124 +176,9 @@ private static void ovsdbManagerWithSsl(int port, final SSLContext sslContext) {
             workerGroup.shutdownGracefully();
         }
     }
-
+	
 </code>
 </pre>
-
-
-private static void ovsdbManagerWithSsl(int port, final SSLContext sslContext) {
-
-        EventLoopGroup bossGroup = new NioEventLoopGroup();
-
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
-
-        try {
-
-            ServerBootstrap serverBootstrap = new ServerBootstrap();
-
-            serverBootstrap.group(bossGroup, workerGroup)
-
-                    .channel(NioServerSocketChannel.class)
-
-                    .option(ChannelOption.SO\_BACKLOG, 100)
-
-                    .handler(new LoggingHandler(LogLevel.INFO))
-
-                    .childHandler(new ChannelInitializer&lt;SocketChannel&gt;() {
-
-                        @Override
-
-                        public void initChannel(SocketChannel channel) throws Exception {
-
-                            logger.debug(&quot;New Passive channel created : {}&quot;, channel);
-
-                            if (sslContext != null) {
-
-                                /\* Add SSL handler first if SSL context is provided \*/
-
-                                SSLEngine engine = sslContext.createSSLEngine();
-
-                                engine.setUseClientMode(false); // work in a server mode
-
-                                engine.setNeedClientAuth(true); // need client authentication
-
-                                //Disable SSLv3 and enable all other supported protocols
-
-                                String[] protocols = {&quot;SSLv2Hello&quot;, &quot;TLSv1&quot;, &quot;TLSv1.1&quot;, &quot;TLSv1.2&quot;};
-
-                                logger.debug(&quot;Set enable protocols {}&quot;, Arrays.toString(protocols));
-
-                                engine.setEnabledProtocols(protocols);
-
-                                logger.debug(&quot;Supported ssl protocols {}&quot;,
-
-                                        Arrays.toString(engine.getSupportedProtocols()));
-
-                                logger.debug(&quot;Enabled ssl protocols {}&quot;,
-
-                                        Arrays.toString(engine.getEnabledProtocols()));
-
-                                //Set cipher suites
-
-                                String[] cipherSuites = {&quot;TLS\_RSA\_WITH\_AES\_128\_CBC\_SHA&quot;};
-
-                                logger.debug(&quot;Set enable cipher cuites {}&quot;, Arrays.toString(cipherSuites));
-
-                                engine.setEnabledCipherSuites(cipherSuites);
-
-                                logger.debug(&quot;Enabled cipher suites {}&quot;,
-
-                                        Arrays.toString(engine.getEnabledCipherSuites()));
-
-                                channel.pipeline().addLast(&quot;ssl&quot;, new SslHandler(engine));
-
-                            }
-
-                            channel.pipeline().addLast(
-
-                                 new JsonRpcDecoder(100000),
-
-                                 new StringEncoder(CharsetUtil.UTF\_8),
-
-                                 new ExceptionHandler());
-
-                            handleNewPassiveConnection(channel);
-
-                        }
-
-                    });
-
-            serverBootstrap.option(ChannelOption.TCP\_NODELAY, true);
-
-            serverBootstrap.option(ChannelOption.RCVBUF\_ALLOCATOR,
-
-                    new AdaptiveRecvByteBufAllocator(65535, 65535, 65535));
-
-            // Start the server.
-
-            ChannelFuture channelFuture = serverBootstrap.bind(port).sync();
-
-            Channel serverListenChannel = channelFuture.channel();
-
-            // Wait until the server socket is closed.
-
-            serverListenChannel.closeFuture().sync();
-
-        } catch (InterruptedException e) {
-
-            logger.error(&quot;Thread interrupted&quot;, e);
-
-        } finally {
-
-            // Shut down all event loops to terminate all threads.
-
-            bossGroup.shutdownGracefully();
-
-            workerGroup.shutdownGracefully();
-
-        }
-
-    }
 
 注意上述的handleNewPassiveConnection函数，一旦有设备主动连接过来，此函数就会被调用，最终会进入listener.connected(client);此时建立的连接由library模块通告给Ovsdb-Southbound模块（也就是刚刚注册给library的OvsdbConnectionManager对象）。
 
@@ -300,219 +186,159 @@ private static void ovsdbManagerWithSsl(int port, final SSLContext sslContext) {
 
 转到OvsdbConnectionManager类，connected函数被调用，
 
-    public void connected(@Nonnull final OvsdbClient externalClient) {
+<pre>
+<code>
 
+public void connected(@Nonnull final OvsdbClient externalClient) {
         OvsdbConnectionInstance client = connectedButCallBacksNotRegistered(externalClient);
 
         // Register Cluster Ownership for ConnectionInfo
-
         registerEntityForOwnership(client);
-
 }
+
+</code>
+</pre>
 
 对于OvsdbConnectionManager来说，tcp连接实例OvsdbConnectionInstance已经拿到，同时还会进行createTransactInvokers。
 
+<pre>
+<code>
+
 public void createTransactInvokers() {
-
         if (transactInvokers == null) {
-
             try {
-
-                transactInvokers = new HashMap&lt;&gt;();
-
-                List&lt;String&gt; databases = getDatabases().get();
-
+                transactInvokers = new HashMap<>();
+                List<String> databases = getDatabases().get();
                 for (String database : databases) {
-
                     DatabaseSchema dbSchema = getSchema(database).get();
-
                     if (dbSchema != null) {
-
                         transactInvokers.put(dbSchema, new TransactInvokerImpl(this,dbSchema));
-
                     }
-
                 }
-
             } catch (InterruptedException | ExecutionException e) {
-
-                LOG.warn(&quot;Exception attempting to createTransactionInvokers {}: {}&quot;,connectionInfo,e);
-
+                LOG.warn("Exception attempting to createTransactionInvokers {}: {}",connectionInfo,e);
             }
-
         }
-
 }
+
+</code>
+</pre>
+
 
 在其中的getDatabases函数当中，其实是调用library当中的list\_dbs协议指令（已被序列后的RPC指令）。
 
-    @Override
-
-    public ListenableFuture&lt;List&lt;String&gt;&gt; getDatabases() {
-
-        return rpc.list\_dbs();
-
+<pre>
+<code>
+   @Override
+    public ListenableFuture<List<String>> getDatabases() {
+        return rpc.list_dbs();
     }
+
+</code>
+</pre>
 
 并且调用getSchema获取ovsdb数据表。最后调用registerEntityForOwnership函数将当前odl控制器连接实例ovsdbConnectionInstance注册为odl集群连接的候选人。
 
+<pre>
+<code>
 private void registerEntityForOwnership(OvsdbConnectionInstance ovsdbConnectionInstance) {
-
         Entity candidateEntity = getEntityFromConnectionInstance(ovsdbConnectionInstance);
-
         if (entityOwnershipService.isCandidateRegistered(candidateEntity)) {
-
             OvsdbConnectionInstance odlOvsdbConnectionInstance = entityConnectionMap.get(candidateEntity);
-
             if (odlOvsdbConnectionInstance != null) {
-
                 unregisterEntityForOwnership(odlOvsdbConnectionInstance);
-
             }
-
         }
-
         entityConnectionMap.put(candidateEntity, ovsdbConnectionInstance);
-
         ovsdbConnectionInstance.setConnectedEntity(candidateEntity);
-
         try {
-
             EntityOwnershipCandidateRegistration registration =
-
                     entityOwnershipService.registerCandidate(candidateEntity);
-
             ovsdbConnectionInstance.setDeviceOwnershipCandidateRegistration(registration);
-
-            LOG.info(&quot;New\_Passive OVSDB entity {} is registered for ownership.&quot;, candidateEntity);
-
-            //If entity already has owner, it won&#39;t get notification from EntityOwnershipService
-
+            LOG.info("New_Passive OVSDB entity {} is registered for ownership.", candidateEntity);
+            //If entity already has owner, it won't get notification from EntityOwnershipService
             //so cache the connection instances.
-
-            Optional&lt;EntityOwnershipState&gt; ownershipStateOpt =
-
+            Optional<EntityOwnershipState> ownershipStateOpt =
                     entityOwnershipService.getOwnershipState(candidateEntity);
-
             if (ownershipStateOpt.isPresent()) {
-
                 EntityOwnershipState ownershipState = ownershipStateOpt.get();
-
-                if (ownershipState.hasOwner() &amp;&amp; !ownershipState.isOwner()) {
-
-                    LOG.info(&quot;OVSDB entity {} is already owned by other southbound plugin &quot;+ &quot;instance, so \*this\* instance is NOT an OWNER of the device&quot;,
-
+                if (ownershipState.hasOwner() && !ownershipState.isOwner()) {
+                    LOG.info("OVSDB entity {} is already owned by other southbound plugin "+ "instance, so *this* instance is NOT an OWNER of the device",
                             ovsdbConnectionInstance.getConnectionInfo());
-
                     putConnectionInstance(ovsdbConnectionInstance.getMDConnectionInfo(),ovsdbConnectionInstance);
-
                 }
-
             }
-
         } catch (CandidateAlreadyRegisteredException e) {
-
-            LOG.warn(&quot;New\_Passive OVSDB entity {} was already registered for ownership&quot;, candidateEntity, e);
-
+            LOG.warn("New_Passive OVSDB entity {} was already registered for ownership", candidateEntity, e);
         }
-
 }
+
+</code>
+</pre>
+
+
 
 一旦ovsdbConnectionInstance的集群选举出当前odl控制器的ovsdbConnectionInstance实例为主连接，则进入OvsdbConnectionManager的handleOwnershipChange函数，并调用ovsdbConnectionInstance.registerCallbacks();函数，此函数很关键。
 
-    public void registerCallbacks() {
-
+<pre>
+<code>
+ public void registerCallbacks() {
         if ( this.callback == null) {
-
             if (this.initialCreateData != null ) {
-
                 this.updateConnectionAttributes();
-
             }
-
             try {
-
                 //获取Database
-
-                List&lt;String&gt; databases = getDatabases().get();
-
-                if (databases != null &amp;&amp; !databases.isEmpty()) {
-
+                List<String> databases = getDatabases().get();
+                if (databases != null && !databases.isEmpty()) {
                     this.callback = new OvsdbMonitorCallback(this,txInvoker);
-
                     for (String database : databases) {
-
                         //获取DatabaseSchema
-
                         DatabaseSchema dbSchema = getSchema(database).get();
-
                         if (dbSchema != null) {
-
                             //下发监控所有dbSchema表的monitor指令
-
                             monitorAllTables(database, dbSchema);
-
                         } else {
-
-                            LOG.warn(&quot;No schema reported for database {} for key {}&quot;,database,connectionInfo);
-
+                            LOG.warn("No schema reported for database {} for key {}",database,connectionInfo);
                         }
-
                     }
-
                 } else {
-
-                    LOG.warn(&quot;No databases reported for key {}&quot;,connectionInfo);
-
+                    LOG.warn("No databases reported for key {}",connectionInfo);
                 }
-
             } catch (InterruptedException | ExecutionException e) {
-
-                LOG.warn(&quot;Exception attempting to registerCallbacks {}: {}&quot;,connectionInfo,e);
-
+                LOG.warn("Exception attempting to registerCallbacks {}: {}",connectionInfo,e);
             }
-
         }
-
     }
+
+</code>
+</pre>
 
 在上述monitorAllTables当中，就是下发监听数据库所有表的monitor指令，这样一旦设备上的ovsdb数据库发生变化，就会自动以update的形式上报给控制器。
 
-    private void monitorAllTables(String database, DatabaseSchema dbSchema) {
-
-        Set&lt;String&gt; tables = dbSchema.getTables();
-
+<pre>
+<code>
+private void monitorAllTables(String database, DatabaseSchema dbSchema) {
+        Set<String> tables = dbSchema.getTables();
         if (tables != null) {
-
-            List&lt;MonitorRequest&gt; monitorRequests = Lists.newArrayList();
-
+            List<MonitorRequest> monitorRequests = Lists.newArrayList();
             for (String tableName : tables) {
-
                 GenericTableSchema tableSchema = dbSchema.table(tableName, GenericTableSchema.class);
-
-                Set&lt;String&gt; columns = tableSchema.getColumns();
-
-                MonitorRequestBuilder&lt;GenericTableSchema&gt; monitorBuilder = MonitorRequestBuilder.builder(tableSchema);
-
+                Set<String> columns = tableSchema.getColumns();
+                MonitorRequestBuilder<GenericTableSchema> monitorBuilder = MonitorRequestBuilder.builder(tableSchema);
                 for (String column : columns) {
-
                     monitorBuilder.addColumn(column);
-
                 }
-
                 monitorRequests.add(monitorBuilder.with(new MonitorSelect(true, true, true, true)).build());
-
             }
-
             this.callback.update(monitor(dbSchema, monitorRequests, callback),dbSchema);
-
         } else {
-
-            LOG.warn(&quot;No tables for schema {} for database {} for key {}&quot;,dbSchema,database,connectionInfo);
-
+            LOG.warn("No tables for schema {} for database {} for key {}",dbSchema,database,connectionInfo);
         }
-
 }
+
+</code>
+</pre>
 
 在这this.callback.update函数当中有点迷惑性，这里深入分析下，首先是tables是从database当中取出来的，目的就是为了下面的dbSchema.table拿到column（列字段），然后monitorRequests是需要监控的table请求指令列表。而monitor函数当中做了两件事，一是调用registerCallback进行了回调注册，另外一件事是拿回monitor响应result并进行数据格式转换transformingCallback。
 
@@ -526,55 +352,37 @@ private void registerEntityForOwnership(OvsdbConnectionInstance ovsdbConnectionI
 
 txInvoker.invoke(new OvsdbOperationalCommandAggregator(key, result, dbSchema));该函数只是将该消息丢给TransactionInvokerImpl类的队列，最后由TransactionInvokerImpl类的线程run函数进行处理，比如写入datastore数据库等操作。
 
+<pre>
+<code>
 public void run() {
-
         while (runTask.get()) {
-
             forgetSuccessfulTransactions();
-
             try {
-
-                List&lt;TransactionCommand&gt; commands = extractCommands();
-
+                List<TransactionCommand> commands = extractCommands();
                 for (TransactionCommand command: commands) {
-
                     final ReadWriteTransaction transaction = chain.newReadWriteTransaction();
-
                     recordPendingTransaction(command, transaction);
-
                     command.execute(transaction);
-
-                    Futures.addCallback(transaction.submit(), new FutureCallback&lt;Void&gt;() {
-
+                    Futures.addCallback(transaction.submit(), new FutureCallback<Void>() {
                         @Override
-
                         public void onSuccess(final Void result) {
-
                             successfulTransactionQueue.offer(transaction);
-
                         }
 
                         @Override
-
                         public void onFailure(final Throwable throwable) {
-
                             // NOOP - handled by failure of transaction chain
-
                         }
-
                     });
-
                 }
-
             } catch (Exception e) {
-
-                LOG.warn(&quot;Exception invoking Transaction: &quot;, e);
-
+                LOG.warn("Exception invoking Transaction: ", e);
             }
-
         }
-
 }
+
+</code>
+</pre>
 
 ## 总结
 
