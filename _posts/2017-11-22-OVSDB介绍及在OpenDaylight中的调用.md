@@ -115,7 +115,7 @@ When odl-ovsdb-openstack is used, it assumes no other application in odl is mana
 
 [https://wiki.opendaylight.org/view/OpenDaylight\_OVSDB:Lithium\_Integration\_Test](https://wiki.opendaylight.org/view/OpenDaylight_OVSDB:Lithium_Integration_Test)
 
-1. 1、安装南向插件
+1、安装南向插件
 
 feature:install odl-ovsdb-southbound-impl-ui
 
@@ -123,7 +123,7 @@ log:display  | grep SouthboundProvider   //查看是否已安装好
 
 ovsdb插件的被动连接方式下（也就是控制器的ovsdb插件当做服务器，设备当做客户端），md-sal de operational 数据库的OVS的node-id格式为ovsdb://uuid//{{uuid of OVS}}；主动连接模式下，OVS的node-id格式为  ovsdb: //{{ip : port}}
 
-1. 2、测试ovsdb插件的被动连接方式，在终端运行
+2、测试ovsdb插件的被动连接方式，在终端运行
 
 ovs-vsctl set-manager tcp:192.168.7.103:6640      //192.168.7.103是控制器的IP
 
@@ -135,7 +135,7 @@ ovs-vsctl del-manager  删除连接
 
 ovs-vsctl add-br br01    增加br01 桥
 
-1. 3、测试ovsdb插件的主动连接方式，在终端运行
+3、测试ovsdb插件的主动连接方式，在终端运行
 
 ovs-vsctl set-manager ptcp:6640
 
