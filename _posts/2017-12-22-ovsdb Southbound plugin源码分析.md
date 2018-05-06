@@ -94,6 +94,7 @@ ovsdbConnection.startOvsdbManager(SouthboundConstants.DEFAULT\_OVSDB\_PORT);å¼€å
 
 <pre>
 <code>
+
 public synchronized boolean startOvsdbManager(final int ovsdbListenPort) {
         if (!singletonCreated) {
             new Thread() {
@@ -285,6 +286,7 @@ private void registerEntityForOwnership(OvsdbConnectionInstance ovsdbConnectionI
 
 <pre>
 <code>
+
  public void registerCallbacks() {
         if ( this.callback == null) {
             if (this.initialCreateData != null ) {
