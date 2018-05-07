@@ -182,14 +182,12 @@ final SSLContext sslContext) {
 
 <pre>
 <code>
-
 public void connected(@Nonnull final OvsdbClient externalClient) {
         OvsdbConnectionInstance client = connectedButCallBacksNotRegistered(externalClient);
 
         // Register Cluster Ownership for ConnectionInfo
         registerEntityForOwnership(client);
 }
-
 </code>
 </pre>
 
