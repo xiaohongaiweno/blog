@@ -115,20 +115,7 @@ public synchronized boolean startOvsdbManager(final int ovsdbListenPort) {
 
 <pre>
 <code>
-public synchronized boolean startOvsdbManager(final int ovsdbListenPort) {
-        if (!singletonCreated) {
-            new Thread() {
-                @Override
-                public void run() {
-                    ovsdbManager(ovsdbListenPort);
-                }
-            }.start();
-            singletonCreated = true;
-            return true;
-        } else {
-            return false;
-        }
-}
+
 </code>
 </pre>
 
