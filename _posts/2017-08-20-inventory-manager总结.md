@@ -13,8 +13,7 @@ inventory-manager模块作为openflowplugin的应用层程序（可理解成odl�
 #### 1 YANG数据模型
 
 ODL在controller\opendaylight\md-sal\model\model-inventory\src\main\yang\opendaylight-inventory.yang文件当中定义了inventory的数据节点的树形结构：
-<pre>
-<code>
+```xml
 container nodes {
         description "The root container of all nodes.";
         list node {
@@ -50,8 +49,7 @@ container nodes {
             description "The unique identifier for the node-connector.";
         }
 }
-</code>
-</pre>
+```
 
 并且在yang语法当中还可以使用Augmentation来在某个节点下插入其他数据。同时还定义了以下notification通告：
 
@@ -90,8 +88,7 @@ onNodeConnectorUpdated    //交换机端口up事件
 ###### 3.1 onNodeUpdated事件
 
 当ODL控制器与openflow交换机建立连接之后，就会触发onNodeUpdated函数，此时Inventory-manager模块做的事情就是将该节点写入yang的node节点（datastore数据库）。
-<pre>
-<code>
+```xml
 public synchronized void onNodeUpdated(final NodeUpdated node) {
         //判断该节点是否是需要delete的节点
         if (deletedNodeCache.getIfPresent(node.getNodeRef()) != null){
@@ -132,15 +129,12 @@ public synchronized void onNodeUpdated(final NodeUpdated node) {
             }
         });
     }
-
-</code>
-</pre>
+```
 
 ###### 3.2 onNodeRemoved事件
 
 ODL控制器与openflow交换机断开连接之后，就会触发onNodeRemoved函数，此时Inventory-manager模块需要将该节点从数据库datastore删除该node节点。
-<pre>
-<code>
+```xml
 public synchronized void onNodeRemoved(final NodeRemoved node) {
         if(deletedNodeCache.getIfPresent(node.getNodeRef()) == null){
             deletedNodeCache.put(node.getNodeRef(), Boolean.TRUE);
@@ -161,16 +155,13 @@ public synchronized void onNodeRemoved(final NodeRemoved node) {
             }
         });
     }
-
-</code>
-</pre>
+```
 
 
 ###### 3.3 onNodeConnectorRemoved事件
 
 当openflow交换机端口变成down之后，就会触发onNodeConnectorRemoved函数，此时Inventory-manager模块需要将该节点从数据库datastore删除该NodeConnector节点。
-<pre>
-<code>
+```xml
 public synchronized void onNodeConnectorRemoved(final NodeConnectorRemoved connector) {
         if(deletedNodeConnectorCache.getIfPresent(connector.getNodeConnectorRef()) == null){
             deletedNodeConnectorCache.put(connector.getNodeConnectorRef(), Boolean.TRUE);
@@ -191,15 +182,12 @@ public synchronized void onNodeConnectorRemoved(final NodeConnectorRemoved conne
             }
         });
 }
-
-</code>
-</pre>
+```
 
 ###### 3.4 onNodeConnectorUpdated事件
 
 当openflow交换机端口变成up之后，就会触发onNodeConnectorUpdated函数，此时Inventory-manager模块需要添加该NodeConnector节点到数据库datastore。
-<pre>
-<code>
+```xml
 public synchronized void onNodeConnectorUpdated(final NodeConnectorUpdated connector) {
         if (deletedNodeConnectorCache.getIfPresent(connector.getNodeConnectorRef()) != null){
             deletedNodeConnectorCache.invalidate(connector.getNodeConnectorRef());
@@ -225,9 +213,7 @@ public synchronized void onNodeConnectorUpdated(final NodeConnectorUpdated conne
             }
         });
 }
-
-</code>
-</pre>
+```
 
 #### 4总结
 
