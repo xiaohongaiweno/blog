@@ -94,7 +94,6 @@ ovsdbConnection.startOvsdbManager(SouthboundConstants.DEFAULT\_OVSDB\_PORT);开�
 
 <pre>
 <code>
-
 public synchronized boolean startOvsdbManager(final int ovsdbListenPort) {
         if (!singletonCreated) {
             new Thread() {
@@ -109,8 +108,6 @@ public synchronized boolean startOvsdbManager(final int ovsdbListenPort) {
             return false;
         }
 }
-
-
 </code>
 </pre>
 
@@ -118,7 +115,6 @@ public synchronized boolean startOvsdbManager(final int ovsdbListenPort) {
 
 <pre>
 <code>
-
 private static void ovsdbManagerWithSsl(int port, final SSLContext sslContext) {
         EventLoopGroup bossGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
@@ -178,10 +174,8 @@ private static void ovsdbManagerWithSsl(int port, final SSLContext sslContext) {
             workerGroup.shutdownGracefully();
         }
     }
-
 </code>
 </pre>
-
 
 注意上述的handleNewPassiveConnection函数，一旦有设备主动连接过来，此函数就会被调用，最终会进入listener.connected(client);此时建立的连接由library模块通告给Ovsdb-Southbound模块（也就是刚刚注册给library的OvsdbConnectionManager对象）。
 
