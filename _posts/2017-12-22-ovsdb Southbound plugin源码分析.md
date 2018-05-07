@@ -210,20 +210,17 @@ public void createTransactInvokers() {
             }
         }
 }
-1111
 ```
 
 
 在其中的getDatabases函数当中，其实是调用library当中的list\_dbs协议指令（已被序列后的RPC指令）。
 
-<pre>
-<code>
+```xml
    @Override
     public ListenableFuture<List<String>> getDatabases() {
         return rpc.list_dbs();
     }
-</code>
-</pre>
+```
 
 并且调用getSchema获取ovsdb数据表。最后调用registerEntityForOwnership函数将当前odl控制器连接实例ovsdbConnectionInstance注册为odl集群连接的候选人。
 
@@ -261,8 +258,6 @@ private void registerEntityForOwnership(OvsdbConnectionInstance ovsdbConnectionI
 }
 ```
 
-
-
 一旦ovsdbConnectionInstance的集群选举出当前odl控制器的ovsdbConnectionInstance实例为主连接，则进入OvsdbConnectionManager的handleOwnershipChange函数，并调用ovsdbConnectionInstance.registerCallbacks();函数，此函数很关键。
 
 ```xml
@@ -298,8 +293,7 @@ private void registerEntityForOwnership(OvsdbConnectionInstance ovsdbConnectionI
 
 在上述monitorAllTables当中，就是下发监听数据库所有表的monitor指令，这样一旦设备上的ovsdb数据库发生变化，就会自动以update的形式上报给控制器。
 
-<pre>
-<code>
+```xml
 private void monitorAllTables(String database, DatabaseSchema dbSchema) {
         Set<String> tables = dbSchema.getTables();
         if (tables != null) {
@@ -318,8 +312,7 @@ private void monitorAllTables(String database, DatabaseSchema dbSchema) {
             LOG.warn("No tables for schema {} for database {} for key {}",dbSchema,database,connectionInfo);
         }
 }
-</code>
-</pre>
+```
 
 在这this.callback.update函数当中有点迷惑性，这里深入分析下，首先是tables是从database当中取出来的，目的就是为了下面的dbSchema.table拿到column（列字段），然后monitorRequests是需要监控的table请求指令列表。而monitor函数当中做了两件事，一是调用registerCallback进行了回调注册，另外一件事是拿回monitor响应result并进行数据格式转换transformingCallback。
 
@@ -333,8 +326,7 @@ private void monitorAllTables(String database, DatabaseSchema dbSchema) {
 
 txInvoker.invoke(new OvsdbOperationalCommandAggregator(key, result, dbSchema));该函数只是将该消息丢给TransactionInvokerImpl类的队列，最后由TransactionInvokerImpl类的线程run函数进行处理，比如写入datastore数据库等操作。
 
-<pre>
-<code>
+```xml
 public void run() {
         while (runTask.get()) {
             forgetSuccessfulTransactions();
@@ -361,8 +353,7 @@ public void run() {
             }
         }
 }
-</code>
-</pre>
+```
 
 ## 总结
 
