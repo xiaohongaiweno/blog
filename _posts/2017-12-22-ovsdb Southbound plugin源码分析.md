@@ -197,7 +197,6 @@ public void connected(@Nonnull final OvsdbClient externalClient) {
 
 <pre>
 <code>
-
 public void createTransactInvokers() {
         if (transactInvokers == null) {
             try {
@@ -214,7 +213,6 @@ public void createTransactInvokers() {
             }
         }
 }
-
 </code>
 </pre>
 
