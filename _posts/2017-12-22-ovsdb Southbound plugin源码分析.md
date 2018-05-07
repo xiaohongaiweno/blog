@@ -195,8 +195,7 @@ public void connected(@Nonnull final OvsdbClient externalClient) {
 
 对于OvsdbConnectionManager来说，tcp连接实例OvsdbConnectionInstance已经拿到，同时还会进行createTransactInvokers。
 
-<pre>
-<code>
+```xml
 public void createTransactInvokers() {
         if (transactInvokers == null) {
             try {
@@ -213,28 +212,23 @@ public void createTransactInvokers() {
             }
         }
 }
-</code>
-</pre>
+```
 
 
 在其中的getDatabases函数当中，其实是调用library当中的list\_dbs协议指令（已被序列后的RPC指令）。
 
 <pre>
 <code>
-
    @Override
     public ListenableFuture<List<String>> getDatabases() {
         return rpc.list_dbs();
     }
-
 </code>
 </pre>
 
 并且调用getSchema获取ovsdb数据表。最后调用registerEntityForOwnership函数将当前odl控制器连接实例ovsdbConnectionInstance注册为odl集群连接的候选人。
 
-<pre>
-<code>
-
+```xml
 private void registerEntityForOwnership(OvsdbConnectionInstance ovsdbConnectionInstance) {
         Entity candidateEntity = getEntityFromConnectionInstance(ovsdbConnectionInstance);
         if (entityOwnershipService.isCandidateRegistered(candidateEntity)) {
@@ -266,17 +260,13 @@ private void registerEntityForOwnership(OvsdbConnectionInstance ovsdbConnectionI
             LOG.warn("New_Passive OVSDB entity {} was already registered for ownership", candidateEntity, e);
         }
 }
-
-</code>
-</pre>
+```
 
 
 
 一旦ovsdbConnectionInstance的集群选举出当前odl控制器的ovsdbConnectionInstance实例为主连接，则进入OvsdbConnectionManager的handleOwnershipChange函数，并调用ovsdbConnectionInstance.registerCallbacks();函数，此函数很关键。
 
-<pre>
-<code>
-
+```xml
  public void registerCallbacks() {
         if ( this.callback == null) {
             if (this.initialCreateData != null ) {
@@ -305,15 +295,12 @@ private void registerEntityForOwnership(OvsdbConnectionInstance ovsdbConnectionI
             }
         }
     }
-
-</code>
-</pre>
+```
 
 在上述monitorAllTables当中，就是下发监听数据库所有表的monitor指令，这样一旦设备上的ovsdb数据库发生变化，就会自动以update的形式上报给控制器。
 
 <pre>
 <code>
-
 private void monitorAllTables(String database, DatabaseSchema dbSchema) {
         Set<String> tables = dbSchema.getTables();
         if (tables != null) {
@@ -332,7 +319,6 @@ private void monitorAllTables(String database, DatabaseSchema dbSchema) {
             LOG.warn("No tables for schema {} for database {} for key {}",dbSchema,database,connectionInfo);
         }
 }
-
 </code>
 </pre>
 
@@ -350,7 +336,6 @@ txInvoker.invoke(new OvsdbOperationalCommandAggregator(key, result, dbSchema));�
 
 <pre>
 <code>
-
 public void run() {
         while (runTask.get()) {
             forgetSuccessfulTransactions();
@@ -377,7 +362,6 @@ public void run() {
             }
         }
 }
-
 </code>
 </pre>
 
