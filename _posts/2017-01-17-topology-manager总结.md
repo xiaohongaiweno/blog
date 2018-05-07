@@ -14,129 +14,43 @@ topology-manager模块也是作为openflowplugin的应用层程序（APP），�
 
 network-topology:network-topology数据节点是直接使用了外部ietf-topology定义的yang文件，主要的数据树结构为：
 
-container network-topology {
-
-        list topology {
-
-            description &quot;
-
-                This is the model of an abstract topology.
-
-                A topology contains nodes and links.
-
-                Each topology MUST be identified by
-
-                unique topology-id for reason that a network could contain many
-
-                topologies.&quot;;
-
-            key &quot;topology-id&quot;;
-
-            leaf topology-id {
-
-                type topology-id;
-
-                description &quot;
-
-                    It is presumed that a datastore will contain many topologies. To
-
-                    distinguish between topologies it is vital to have UNIQUE
-
-                    topology identifiers.&quot;;
-
-            }
-
-            list node {
-
-                description &quot;The list of network nodes defined for the topology.&quot;;
-
-                key &quot;node-id&quot;;
-
-                uses node-attributes;
-
-                must &quot;boolean(../underlay-topology[\*]/node[./supporting-nodes/node-ref])&quot;;
-
-                    // This constraint is meant to ensure that a referenced node is in fact
-
-                    // a node in an underlay topology.
-
-                list termination-point {
-
-                    description
-
-                        &quot;A termination point can terminate a link.
-
-                        Depending on the type of topology, a termination point could,
-
-                        for example, refer to a port or an interface.&quot;;
-
-                    key &quot;tp-id&quot;;
-
-                    uses tp-attributes;
-
-                }
-
-            }
-
-            list link {
-
-                description &quot;
-
-                    A Network Link connects a by Local (Source) node and
-
-                    a Remote (Destination) Network Nodes via a set of the
-
-                    nodes&#39; termination points.
-
-                    As it is possible to have several links between the same
-
-                    source and destination nodes, and as a link could potentially
-
-                    be re-homed between termination points, to ensure that we
-
-                    would always know to distinguish between links, every link
-
-                    is identified by a dedicated link identifier.
-
-                    Note that a link models a point-to-point link, not a multipoint
-
-                    link.
-
-                    Layering dependencies on links in underlay topologies are
-
-                    not represented as the layering information of nodes and of
-
-                    termination points is sufficient.&quot;;
-
-                key &quot;link-id&quot;;
-
-                uses link-attributes;
-
-                must &quot;boolean(../underlay-topology/link[./supporting-link])&quot;;
-
-                    // Constraint: any supporting link must be part of an underlay topology
-
-                must &quot;boolean(../node[./source/source-node])&quot;;
-
-                    // Constraint: A link must have as source a node of the same topology
-
-                must &quot;boolean(../node[./destination/dest-node])&quot;;
-
-                    // Constraint: A link must have as source a destination of the same topology
-
-                must &quot;boolean(../node/termination-point[./source/source-tp])&quot;;
-
-                    // Constraint: The source termination point must be contained in the source node
-
-                must &quot;boolean(../node/termination-point[./destination/dest-tp])&quot;;
-
-                    // Constraint: The destination termination point must be contained
-
-                    // in the destination node
-
-            }
-
+```xml
+container nodes {
+        description "The root container of all nodes.";
+        list node {
+            key "id";
+            ext:context-instance "node-context";
+            description "A list of nodes (as defined by the 'grouping node').";
+            uses node; //this refers to the 'grouping node' defined above.
         }
+    }
+    grouping node {
+        description "Describes the contents of a generic node -
+                     essentially an ID and a list of node-connectors.
+                     Acts as an augmentation point where other yang files
+                      can add additional information.";
+
+        leaf id {
+            type node-id;
+            description "The unique identifier for the node.";
+        }
+        list "node-connector" {
+            key "id";
+            description "A list of node connectors that belong this node.";
+            ext:context-instance "node-connector-context";
+            uses node-connector;
+        }
+}
+    grouping node-connector {
+        description "Describes a generic node connector which consists of an ID.
+                     Acts as an augmentation point where other yang files can
+                      add additional information.";
+        leaf id {
+            type node-connector-id;
+            description "The unique identifier for the node-connector.";
+        }
+}
+```
 
 #### 2相关依赖
 
@@ -174,89 +88,77 @@ topology-manager的入口在TopologyLldpDiscoveryImplModule.java文件的createI
 
 当控制器通过LLDP发现新加的设备与现有设备存在一条链路时（交换机与交换机之间的链路），会触发onLinkDiscovered函数的调用，将该link保存在数据库当中。
 
-public void onLinkDiscovered(final LinkDiscovered notification) {
-
-        processor.enqueueOperation(new TopologyOperation() {
-
+```xml
+public synchronized void onNodeUpdated(final NodeUpdated node) {
+        //判断该节点是否是需要delete的节点
+        if (deletedNodeCache.getIfPresent(node.getNodeRef()) != null){
+            deletedNodeCache.invalidate(node.getNodeRef());
+        }
+        //获取需要写入的数据树节点位置
+        final FlowCapableNodeUpdated flowNode = node.getAugmentation(FlowCapableNodeUpdated.class);
+        if (flowNode == null) {
+            return;
+        }
+        LOG.debug("Node updated notification received,{}", node.getNodeRef().getValue());
+        manager.enqueue(new InventoryOperation() {
             @Override
+            public void applyOperation(ReadWriteTransaction tx) {
+                final NodeRef ref = node.getNodeRef();
+                @SuppressWarnings("unchecked")
+                //组装node数据
+                InstanceIdentifierBuilder<Node> builder = ((InstanceIdentifier<Node>) ref.getValue()).builder();
+                InstanceIdentifierBuilder<FlowCapableNode> augmentation = builder.augmentation(FlowCapableNode.class);
+                final InstanceIdentifier<FlowCapableNode> path = augmentation.build();
+                CheckedFuture<Optional<FlowCapableNode>, ?> readFuture = tx.read(LogicalDatastoreType.OPERATIONAL, path);
+                Futures.addCallback(readFuture, new FutureCallback<Optional<FlowCapableNode>>() {
+                    @Override
+                    public void onSuccess(Optional<FlowCapableNode> optional) {
+                        enqueueWriteNodeDataTx(node, flowNode, path);
+                        if (!optional.isPresent()) {
+                            enqueuePutTable0Tx(ref);
+                        }
+                    }
 
-            public void applyOperation(final ReadWriteTransaction transaction) {
-
-                //构造network-topology的link数据
-
-                final Link link = toTopologyLink(notification);
-
-                //数据应该存放的数据树节点位置
-
-                final InstanceIdentifier&lt;Link&gt; path = TopologyManagerUtil.linkPath(link, iiToTopology);
-
-                transaction.merge(LogicalDatastoreType.OPERATIONAL, path, link, true);
-
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                        LOG.debug(String.format("Can't retrieve node data for node %s. Writing node data with table0.", node));
+                        enqueueWriteNodeDataTx(node, flowNode, path);
+                        enqueuePutTable0Tx(ref);
+                    }
+                });
             }
-
-            @Override
-
-            public String toString() {
-
-                return &quot;onLinkDiscovered&quot;;
-
-            }
-
         });
-
     }
+
+```
 
 ###### 3.2 onLinkRemoved事件
 
 当上述链接断开之后，就会触发onLinkRemoved函数的调用，将之前保存在数据库当中的link信息删除。
 
-public void onLinkRemoved(final LinkRemoved notification) {
-
-        processor.enqueueOperation(new TopologyOperation() {
-
+```xml
+public synchronized void onNodeRemoved(final NodeRemoved node) {
+        if(deletedNodeCache.getIfPresent(node.getNodeRef()) == null){
+            deletedNodeCache.put(node.getNodeRef(), Boolean.TRUE);
+        } else {
+            //its been noted that creating an operation for already removed node, fails
+            // the entire transaction chain, there by failing deserving removals
+            LOG.debug("Already received notification to remove node, {} - Ignored",
+                    node.getNodeRef().getValue());
+            return;
+        }
+        LOG.debug("Node removed notification received, {}", node.getNodeRef().getValue());
+        manager.enqueue(new InventoryOperation() {
             @Override
-
-            public void applyOperation(final ReadWriteTransaction transaction) {
-
-                Optional&lt;Link&gt; linkOptional = Optional.absent();
-
-                try {
-
-                    // read that checks if link exists (if we do not do this we might get an exception on delete)
-
-                    linkOptional = transaction.read(LogicalDatastoreType.OPERATIONAL,
-
-                            TopologyManagerUtil.linkPath(toTopologyLink(notification), iiToTopology)).checkedGet();
-
-                } catch (ReadFailedException e) {
-
-                    LOG.warn(&quot;Error occured when trying to read Link: {}&quot;, e.getMessage());
-
-                    LOG.debug(&quot;Error occured when trying to read Link.. &quot;, e);
-
-                }
-
-                //删除network-topology下的link数据
-
-                if (linkOptional.isPresent()) {
-
-                    transaction.delete(LogicalDatastoreType.OPERATIONAL, TopologyManagerUtil.linkPath(toTopologyLink(notification), iiToTopology));
-
-                }
-
+            public void applyOperation(final ReadWriteTransaction tx) {
+                final NodeRef ref = node.getNodeRef();
+                LOG.debug("removing node : {}", ref.getValue());
+                tx.delete(LogicalDatastoreType.OPERATIONAL, ref.getValue());
             }
-
-            @Override
-
-            public String toString() {
-
-                return &quot;onLinkRemoved&quot;;
-
-            }
-
         });
-
     }
+
+```
 
 ###### 3.3 FlowCapableNode数据变化事件
 
@@ -268,25 +170,29 @@ processRemovedNode(change.getRemovedPaths());
 
 两个函数在自己内部判断是否是节点添加/删除事件，最终将交换机节点信息写入network-topology数据树当中。
 
-protected void createData(final InstanceIdentifier&lt;?&gt; iiToNodeInInventory) {
-
-        final NodeId nodeIdInTopology = provideTopologyNodeId(iiToNodeInInventory);
-
-        if (nodeIdInTopology != null) {
-
-            final InstanceIdentifier&lt;org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.network.topology.topology.Node&gt; iiToTopologyNode = provideIIToTopologyNode(nodeIdInTopology);
-
-            //写入network-topology数据树
-
-            sendToTransactionChain(prepareTopologyNode(nodeIdInTopology, iiToNodeInInventory), iiToTopologyNode);
-
+```xml
+public synchronized void onNodeConnectorRemoved(final NodeConnectorRemoved connector) {
+        if(deletedNodeConnectorCache.getIfPresent(connector.getNodeConnectorRef()) == null){
+            deletedNodeConnectorCache.put(connector.getNodeConnectorRef(), Boolean.TRUE);
         } else {
-
-            LOG.debug(&quot;Inventory node key is null. Data can&#39;t be written to topology&quot;);
-
+            //its been noted that creating an operation for already removed node-connectors, fails
+            // the entire transaction chain, there by failing deserving removals
+            LOG.debug("Already received notification to remove nodeConnector, {} - Ignored",
+                    connector.getNodeConnectorRef().getValue());
+            return;
         }
+        LOG.debug("Node connector removed notification received, {}", connector.getNodeConnectorRef().getValue());
+        manager.enqueue(new InventoryOperation() {
+            @Override
+            public void applyOperation(final ReadWriteTransaction tx) {
+                final NodeConnectorRef ref = connector.getNodeConnectorRef();
+                LOG.debug("removing node connector {} ", ref.getValue());
+                tx.delete(LogicalDatastoreType.OPERATIONAL, ref.getValue());
+            }
+        });
+}
 
-    }
+```
 
 ###### 3.4 FlowCapableNodeConnector数据变化事件
 
@@ -300,33 +206,34 @@ processRemovedTerminationPoints(change.getRemovedPaths());
 
 类似的，上述3个函数也是内部判断是否是数据新加/更新/删除事件，假如是新加事件，则调用createData函数将TerminationPoint写入network-topology数据树。
 
-protected void createData(final InstanceIdentifier&lt;?&gt; iiToNodeInInventory, final DataObject data) {
-
-        TpId terminationPointIdInTopology = provideTopologyTerminationPointId(iiToNodeInInventory);
-
-        if (terminationPointIdInTopology != null) {
-
-            InstanceIdentifier&lt;TerminationPoint&gt; iiToTopologyTerminationPoint = provideIIToTopologyTerminationPoint(
-
-                    terminationPointIdInTopology, iiToNodeInInventory);
-
-            TerminationPoint point = prepareTopologyTerminationPoint(terminationPointIdInTopology, iiToNodeInInventory);
-
-            sendToTransactionChain(point, iiToTopologyTerminationPoint);
-
-            if (data instanceof FlowCapableNodeConnector) {
-
-                removeLinks((FlowCapableNodeConnector) data, point);
-
-            }
-
-        } else {
-
-            LOG.debug(&quot;Inventory node connector key is null. Data can&#39;t be written to topology termination point&quot;);
-
+```xml
+public synchronized void onNodeConnectorUpdated(final NodeConnectorUpdated connector) {
+        if (deletedNodeConnectorCache.getIfPresent(connector.getNodeConnectorRef()) != null){
+            deletedNodeConnectorCache.invalidate(connector.getNodeConnectorRef());
         }
+        LOG.debug("Node connector updated notification received.");
+        manager.enqueue(new InventoryOperation() {
+            @Override
+            public void applyOperation(final ReadWriteTransaction tx) {
+                final NodeConnectorRef ref = connector.getNodeConnectorRef();
+                final NodeConnectorBuilder data = new NodeConnectorBuilder(connector);
+                data.setKey(new NodeConnectorKey(connector.getId()));
 
+                final FlowCapableNodeConnectorUpdated flowConnector = connector
+                        .getAugmentation(FlowCapableNodeConnectorUpdated.class);
+                if (flowConnector != null) {
+                    final FlowCapableNodeConnector augment = InventoryMapping.toInventoryAugment(flowConnector);
+                    data.addAugmentation(FlowCapableNodeConnector.class, augment);
+                }
+                InstanceIdentifier<NodeConnector> value = (InstanceIdentifier<NodeConnector>) ref.getValue();
+                LOG.debug("updating node connector : {}.", value);
+                NodeConnector build = data.build();
+                tx.merge(LogicalDatastoreType.OPERATIONAL, value, build, true);
+            }
+        });
 }
+
+```
 
 #### 4总结
 
