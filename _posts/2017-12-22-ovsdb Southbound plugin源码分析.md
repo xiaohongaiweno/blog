@@ -113,8 +113,7 @@ public synchronized boolean startOvsdbManager(final int ovsdbListenPort) {
 
 从上述代码可以看出新建连接是单例形式，即注册的控制器与设备连接handler（被动模式）只能有一个，同时还支持SSL加密安全。
 
-<pre>
-<code>
+```xml
 private static void ovsdbManagerWithSsl(int port, 
 final SSLContext sslContext) {
     EventLoopGroup bossGroup = new NioEventLoopGroup();
@@ -173,8 +172,7 @@ final SSLContext sslContext) {
         workerGroup.shutdownGracefully();
     }
 }
-</code>
-</pre>
+```
 
 注意上述的handleNewPassiveConnection函数，一旦有设备主动连接过来，此函数就会被调用，最终会进入listener.connected(client);此时建立的连接由library模块通告给Ovsdb-Southbound模块（也就是刚刚注册给library的OvsdbConnectionManager对象）。
 
