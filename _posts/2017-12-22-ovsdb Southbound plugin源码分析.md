@@ -115,51 +115,48 @@ public synchronized boolean startOvsdbManager(final int ovsdbListenPort) {
 
 <pre>
 <code>
-private static void ovsdbManagerWithSsl(int port, final SSLContext sslContext) {
+private static void ovsdbManagerWithSsl(int port, 
+final SSLContext sslContext) {
     EventLoopGroup bossGroup = new NioEventLoopGroup();
     EventLoopGroup workerGroup = new NioEventLoopGroup();
     try {
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.group(bossGroup, workerGroup)
-            .channel(NioServerSocketChannel.class)
-            .option(ChannelOption.SO_BACKLOG, 100)
-            .handler(new LoggingHandler(LogLevel.INFO))
-            .childHandler(new ChannelInitializer<SocketChannel>() {
-				@Override
-				public void initChannel(SocketChannel channel) throws Exception {
-					logger.debug("New Passive channel created : {}", channel);
-					if (sslContext != null) {
-					/* Add SSL handler first if SSL context is provided */
-					SSLEngine engine = sslContext.createSSLEngine();
-					engine.setUseClientMode(false); // work in a server mode
-					engine.setNeedClientAuth(true); // need client authentication
-					//Disable SSLv3 and enable all other supported protocols
-					String[] protocols = {"SSLv2Hello", "TLSv1", "TLSv1.1", "TLSv1.2"};
-					logger.debug("Set enable protocols {}", Arrays.toString(protocols));
-					engine.setEnabledProtocols(protocols);
-					logger.debug("Supported ssl protocols {}",
-						Arrays.toString(engine.getSupportedProtocols()));
-					logger.debug("Enabled ssl protocols {}",
-						Arrays.toString(engine.getEnabledProtocols()));
-					//Set cipher suites
-					String[] cipherSuites = {"TLS_RSA_WITH_AES_128_CBC_SHA"};
-					logger.debug("Set enable cipher cuites {}", Arrays.toString(cipherSuites));
-					engine.setEnabledCipherSuites(cipherSuites);
-					logger.debug("Enabled cipher suites {}",
-						Arrays.toString(engine.getEnabledCipherSuites()));
-					channel.pipeline().addLast("ssl", new SslHandler(engine));
-					}
-					channel.pipeline().addLast(
-					new JsonRpcDecoder(100000),
-					new StringEncoder(CharsetUtil.UTF_8),
-					new ExceptionHandler());
-					handleNewPassiveConnection(channel);
+        .channel(NioServerSocketChannel.class)
+        .option(ChannelOption.SO_BACKLOG, 100)
+        .handler(new LoggingHandler(LogLevel.INFO))
+        .childHandler(new ChannelInitializer<SocketChannel>() {
+		@Override
+		public void initChannel(SocketChannel channel) throws Exception {
+		    logger.debug("New Passive channel created : {}", channel);
+			if (sslContext != null) {
+				/* Add SSL handler first if SSL context is provided */
+				SSLEngine engine = sslContext.createSSLEngine();
+				engine.setUseClientMode(false); // work in a server mode
+				engine.setNeedClientAuth(true); // need client authentication
+				//Disable SSLv3 and enable all other supported protocols
+				String[] protocols = {"SSLv2Hello", "TLSv1", "TLSv1.1", "TLSv1.2"};
+				logger.debug("Set enable protocols {}", Arrays.toString(protocols));
+				engine.setEnabledProtocols(protocols);
+				logger.debug("Supported ssl protocols {}",
+					Arrays.toString(engine.getSupportedProtocols()));
+				logger.debug("Enabled ssl protocols {}",
+					Arrays.toString(engine.getEnabledProtocols()));
+				//Set cipher suites
+				String[] cipherSuites = {"TLS_RSA_WITH_AES_128_CBC_SHA"};
+				logger.debug("Set enable cipher cuites {}", Arrays.toString(cipherSuites));
+				engine.setEnabledCipherSuites(cipherSuites);
+				logger.debug("Enabled cipher suites {}",
+				Arrays.toString(engine.getEnabledCipherSuites()));
+				channel.pipeline().addLast("ssl", new SslHandler(engine));
 				}
+				channel.pipeline().addLast(
+				new JsonRpcDecoder(100000),
+				new StringEncoder(CharsetUtil.UTF_8),
+				new ExceptionHandler());
+				handleNewPassiveConnection(channel);
+			}
             });
-</code>
-</pre>
-<code>
-<pre>
         serverBootstrap.option(ChannelOption.TCP_NODELAY, true);
         serverBootstrap.option(ChannelOption.RCVBUF_ALLOCATOR,
             new AdaptiveRecvByteBufAllocator(65535, 65535, 65535));
@@ -175,7 +172,7 @@ private static void ovsdbManagerWithSsl(int port, final SSLContext sslContext) {
         bossGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
     }
-}111
+}
 </code>
 </pre>
 
