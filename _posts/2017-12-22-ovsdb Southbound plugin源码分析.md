@@ -156,6 +156,10 @@ private static void ovsdbManagerWithSsl(int port, final SSLContext sslContext) {
 					handleNewPassiveConnection(channel);
 				}
             });
+</code>
+</pre>
+<code>
+<pre>
         serverBootstrap.option(ChannelOption.TCP_NODELAY, true);
         serverBootstrap.option(ChannelOption.RCVBUF_ALLOCATOR,
             new AdaptiveRecvByteBufAllocator(65535, 65535, 65535));
@@ -172,7 +176,6 @@ private static void ovsdbManagerWithSsl(int port, final SSLContext sslContext) {
         workerGroup.shutdownGracefully();
     }
 }
-
 </code>
 </pre>
 
