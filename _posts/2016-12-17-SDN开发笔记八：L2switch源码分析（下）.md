@@ -27,218 +27,130 @@ Arphandler模块主要是处理openflow交换机以packetin方式上送的arp报
 当交换机连上odl控制器，openflowplugin会发出onNodeUpdated的通知事件，此时进入到flood流表下发流程。
 
 当数据树/Nodes/Node/NodeConnector/StpStatusAwareNodeConnector发生变化，也会进入flood流表下发流程，这里是使用StpStatusDataChangeEventProcessor开一个线程来做。
-
+```xml
 private class StpStatusDataChangeEventProcessor implements Runnable {
-
-    AsyncDataChangeEvent&lt;InstanceIdentifier&lt;?&gt;, DataObject&gt; instanceIdentifierDataObjectAsyncDataChangeEvent;
-
+    AsyncDataChangeEvent<InstanceIdentifier<?>, DataObject> instanceIdentifierDataObjectAsyncDataChangeEvent;
     @Override
-
     public void run() {
-
-      \_logger.debug(&quot;In flow refresh thread.&quot;);
-
+      _logger.debug("In flow refresh thread.");
       if (threadReschedule) {
-
-        \_logger.debug(&quot;Rescheduling thread&quot;);
-
+        _logger.debug("Rescheduling thread");
         stpStatusDataChangeEventProcessor.schedule(this, flowInstallationDelay, TimeUnit.MILLISECONDS);
-
         threadReschedule = false;
-
         return;
-
       }
 
       flowRefreshScheduled = false;
-
       installFloodFlows();
-
 }
+```
 
 从代码来开，某一时刻只能有一个线程来做installFloodFlows流程，在installFloodFlows当中，先在datastore当中找出已经发现的端口（这些端口信息是由openflowplugin写入的），过滤掉互连端口和local端口，最终调用salFlowService接口下发flood流表，此时下发的flood流表并未保存在数据库当中。
 
-private Future&lt;RpcResult&lt;AddFlowOutput&gt;&gt; writeFlowToSwitch(NodeId nodeId, Flow flow) {
-
-      InstanceIdentifier&lt;Node&gt; nodeInstanceId = InstanceIdentifier.&lt;Nodes&gt;builder(Nodes.class)
-
-          .&lt;Node, NodeKey&gt;child(Node.class, new NodeKey(nodeId)).build();
-
-      InstanceIdentifier&lt;Table&gt; tableInstanceId = nodeInstanceId.&lt;FlowCapableNode&gt;augmentation(FlowCapableNode.class)
-
-          .&lt;Table, TableKey&gt;child(Table.class, new TableKey(flowTableId));
-
-      InstanceIdentifier&lt;Flow&gt; flowPath = tableInstanceId
-
-          .&lt;Flow, FlowKey&gt;child(Flow.class, new FlowKey(new FlowId(String.valueOf(flowIdInc.getAndIncrement()))));
+```xml
+private Future<RpcResult<AddFlowOutput>> writeFlowToSwitch(NodeId nodeId, Flow flow) {
+      InstanceIdentifier<Node> nodeInstanceId = InstanceIdentifier.<Nodes>builder(Nodes.class)
+          .<Node, NodeKey>child(Node.class, new NodeKey(nodeId)).build();
+      InstanceIdentifier<Table> tableInstanceId = nodeInstanceId.<FlowCapableNode>augmentation(FlowCapableNode.class)
+          .<Table, TableKey>child(Table.class, new TableKey(flowTableId));
+      InstanceIdentifier<Flow> flowPath = tableInstanceId
+          .<Flow, FlowKey>child(Flow.class, new FlowKey(new FlowId(String.valueOf(flowIdInc.getAndIncrement()))));
 
       final AddFlowInputBuilder builder = new AddFlowInputBuilder(flow)
-
           .setNode(new NodeRef(nodeInstanceId))
-
           .setFlowTable(new FlowTableRef(tableInstanceId))
-
           .setFlowRef(new FlowRef(flowPath))
-
           .setTransactionUri(new Uri(flow.getId().getValue()));
-
       return salFlowService.addFlow(builder.build());
-
 }
+```
 
 再看Reactive模式，在ArpHandlerModule.java的createInstance函数new出InitialFlowWriter对象，该对象注册了OpendaylightInventoryListener的监听器，等待onNodeUpdated事件，在InitialFlowWriter当中只是下发流表将arp报文全部上送控制器，让控制器来统一处理。
 
+```xml
 private Flow createArpToControllerFlow(Short tableId, int priority) {
-
       // start building flow
-
       FlowBuilder arpFlow = new FlowBuilder() //
-
           .setTableId(tableId) //
-
-          .setFlowName(&quot;arptocntrl&quot;);
-
+          .setFlowName("arptocntrl");
       // use its own hash code for id.
-
       arpFlow.setId(new FlowId(Long.toString(arpFlow.hashCode())));
-
       EthernetMatchBuilder ethernetMatchBuilder = new EthernetMatchBuilder()
-
           .setEthernetType(new EthernetTypeBuilder()
-
               .setType(new EtherType(Long.valueOf(KnownEtherType.Arp.getIntValue()))).build());
-
       Match match = new MatchBuilder()
-
           .setEthernetMatch(ethernetMatchBuilder.build())
-
           .build();
-
-      List&lt;Action&gt; actions = new ArrayList&lt;Action&gt;();
-
+      List<Action> actions = new ArrayList<Action>();
       actions.add(getSendToControllerAction());
-
       if(isHybridMode) {
-
         actions.add(getNormalAction());
-
       }
-
       // Create an Apply Action
-
       ApplyActions applyActions = new ApplyActionsBuilder().setAction(actions)
-
           .build();
-
       // Wrap our Apply Action in an Instruction
-
       Instruction applyActionsInstruction = new InstructionBuilder() //
-
           .setOrder(0)
-
           .setInstruction(new ApplyActionsCaseBuilder()//
-
               .setApplyActions(applyActions) //
-
               .build()) //
-
           .build();
-
       // Put our Instruction in a list of Instructions
-
       arpFlow
-
           .setMatch(match) //
-
           .setInstructions(new InstructionsBuilder() //
-
               .setInstruction(ImmutableList.of(applyActionsInstruction)) //
-
               .build()) //
-
           .setPriority(priority) //
-
-          .setBufferId(OFConstants.OFP\_NO\_BUFFER) //
-
+          .setBufferId(OFConstants.OFP_NO_BUFFER) //
           .setHardTimeout(flowHardTimeout) //
-
           .setIdleTimeout(flowIdleTimeout) //
-
           .setCookie(new FlowCookie(BigInteger.valueOf(flowCookieInc.getAndIncrement())))
-
           .setFlags(new FlowModFlags(false, false, false, false, false));
 
       return arpFlow.build();
-
 }
-
 private Action getSendToControllerAction() {
-
       Action sendToController = new ActionBuilder()
-
           .setOrder(0)
-
           .setKey(new ActionKey(0))
-
           .setAction(new OutputActionCaseBuilder()
-
               .setOutputAction(new OutputActionBuilder()
-
                   .setMaxLength(0xffff)
-
                   .setOutputNodeConnector(new Uri(OutputPortValues.CONTROLLER.toString()))
-
                   .build())
-
               .build())
-
           .build();
-
       return sendToController;
-
 }
+```
 
 有了流表之后，控制器会收到arp类型的packetin报文，所以还需要针对这些报文做arp响应，相当于由odl控制器来代理arp响应。
 
  在ArpHandlerModule.java的createInstance函数当中，还new出InventoryReader和ArpPacketHandler，而在ArpPacketHandler当中是有监听ArpPacketListener消息通过的，该消息是由packethandler发出的，一旦有arp报文packetin进来，就会触发onArpPacketReceived函数的调用，进而进入dispatchPacket处理流程。
 
+```xml
 public void dispatchPacket(byte[] payload, NodeConnectorRef ingress, MacAddress srcMac, MacAddress destMac) {
-
     inventoryReader.readInventory();
-
     String nodeId = ingress.getValue().firstIdentifierOf(Node.class).firstKeyOf(Node.class, NodeKey.class).getId().getValue();
-
     NodeConnectorRef srcConnectorRef = inventoryReader.getControllerSwitchConnectors().get(nodeId);
-
     if(srcConnectorRef == null) {
-
       refreshInventoryReader();
-
       srcConnectorRef = inventoryReader.getControllerSwitchConnectors().get(nodeId);
-
     }
-
     NodeConnectorRef destNodeConnector = inventoryReader.getNodeConnector(ingress.getValue().firstIdentifierOf(Node.class), destMac);
-
     if(srcConnectorRef != null) {
-
       if(destNodeConnector != null) {
-
         sendPacketOut(payload, srcConnectorRef, destNodeConnector);
-
       } else {
-
         floodPacket(nodeId, payload, ingress, srcConnectorRef);
-
       }
-
     } else {
-
-      \_logger.info(&quot;Cannot send packet out or flood as controller node connector is not available for node {}.&quot;, nodeId);
-
+      _logger.info("Cannot send packet out or flood as controller node connector is not available for node {}.", nodeId);
     }
-
   }
+```
 
 在dispatchPacket当中，会根据inventoryReader当中保存的nodeId---List&lt;nodeconnector&gt;键值对查找（inventoryReader.readInventory();中做了保存上述键值对），当查到目标mac曾经在nodeconnector 上出现的destNodeConnector，则采用单播方式将该arp往该端口发送packetout报文 ，sendPacketOut(payload, srcConnectorRef, destNodeConnector);函数就是做这个的。当未找到目标mac的destNodeConnector，也就是说，该mac以前没有在哪一个nodeconnector上出现过，则采用广播方式进行packetout，对应于floodPacket(nodeId, payload, ingress, srcConnectorRef);函数。
 
@@ -250,37 +162,24 @@ Loopremover模块主要用于环路的消除，比如当两台交换机当中有
 
 于此同时，还会new出TopologyLinkDataChangeHandler对象，一直监听OPERATIONAL数据库上的/NetworkTopology/Topology/Link数据节点，当Link发生变化时（比方说新建了一条link），就会开一个线程TopologyDataChangeEventProcessor来做stp生成树计算，在这其中先是将link加入networkGraph（networkGraphService.addLinks(links);函数就是做这个），然后调用updateNodeConnectorStatus(readWriteTransaction);函数，在该函数当中更新nodeconnector生成树状态Forwarding还是Discarding。
 
+```xml
 private void updateNodeConnectorStatus(ReadWriteTransaction readWriteTransaction) {
-
-      List&lt;Link&gt; allLinks = networkGraphService.getAllLinks();
-
+      List<Link> allLinks = networkGraphService.getAllLinks();
       if(allLinks == null || allLinks.isEmpty()) {
-
         return;
-
       }
-
-      List&lt;Link&gt; mstLinks = networkGraphService.getLinksInMst();
-
+      List<Link> mstLinks = networkGraphService.getLinksInMst();
       for(Link link : allLinks) {
-
-        if(mstLinks != null &amp;&amp; !mstLinks.isEmpty() &amp;&amp; mstLinks.contains(link)) {
-
+        if(mstLinks != null && !mstLinks.isEmpty() && mstLinks.contains(link)) {
           updateNodeConnector(readWriteTransaction, getSourceNodeConnectorRef(link), StpStatus.Forwarding);
-
           updateNodeConnector(readWriteTransaction, getDestNodeConnectorRef(link), StpStatus.Forwarding);
-
         } else {
-
           updateNodeConnector(readWriteTransaction, getSourceNodeConnectorRef(link), StpStatus.Discarding);
-
           updateNodeConnector(readWriteTransaction, getDestNodeConnectorRef(link), StpStatus.Discarding);
-
         }
-
       }
-
 }
+```
 
 TopologyLinkDataChangeHandler.java – 监听拓扑上的数据改变事件，当发生改变事件时，等待graph-refresh-delay秒后，通告NetworkGraphImpl更新。同时把在数据拓扑里的每条链路的STP的状态置成&quot;转发&quot;或者&quot;丢弃&quot;。
 
@@ -296,39 +195,25 @@ l2switch-main主要负责安装流表，在58-l2switchmain.xml中配置is-instal
 
 在L2SwitchMainModule.java当中的createInstance函数new出ReactiveFlowWriter实现监听ArpPacketListener，一旦有arp上送控制器，则触发onArpPacketReceived函数，然后进入writeFlows函数，最后调用的是addBidirectionalMacToMacFlows函数，该函数就是将destMac-----sourceMac的相互通信流表下发到交换机。
 
+```xml
 public void addMacToMacFlow(MacAddress sourceMac, MacAddress destMac, NodeConnectorRef destNodeConnectorRef) {
-
-    Preconditions.checkNotNull(destMac, &quot;Destination mac address should not be null.&quot;);
-
-    Preconditions.checkNotNull(destNodeConnectorRef, &quot;Destination port should not be null.&quot;);
-
+    Preconditions.checkNotNull(destMac, "Destination mac address should not be null.");
+    Preconditions.checkNotNull(destNodeConnectorRef, "Destination port should not be null.");
     // do not add flow if both macs are same.
-
-    if(sourceMac != null &amp;&amp; destMac.equals(sourceMac)) {
-
-      \_logger.info(&quot;In addMacToMacFlow: No flows added. Source and Destination mac are same.&quot;);
-
+    if(sourceMac != null && destMac.equals(sourceMac)) {
+      _logger.info("In addMacToMacFlow: No flows added. Source and Destination mac are same.");
       return;
-
     }
-
     // get flow table key
-
     TableKey flowTableKey = new TableKey((short) flowTableId);
-
     //build a flow path based on node connector to program flow
-
-    InstanceIdentifier&lt;Flow&gt; flowPath = buildFlowPath(destNodeConnectorRef, flowTableKey);
-
+    InstanceIdentifier<Flow> flowPath = buildFlowPath(destNodeConnectorRef, flowTableKey);
     // build a flow that target given mac id
-
     Flow flowBody = createMacToMacFlow(flowTableKey.getId(), flowPriority, sourceMac, destMac, destNodeConnectorRef);
-
     // commit the flow in config data
-
     writeFlowToConfigData(flowPath, flowBody);
-
 }
+```
 
 ## 总结
 

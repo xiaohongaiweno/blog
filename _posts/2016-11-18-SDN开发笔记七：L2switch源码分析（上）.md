@@ -116,81 +116,46 @@ Hosttracker入口在HostTrackerModule.java的createInstance函数当中，从该
 
 在processHost函数当中就将主机添加到network-topology数据节点当中，并建立主机与交换机的link链接。
 
-    private void processHost(org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes.Node node,
-
+```xml
+processHost(org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes.Node node,
             NodeConnector nodeConnector,
-
             Addresses addrs) {
-
-        List&lt;Host&gt; hostsToMod = new ArrayList&lt;&gt;();
-
-        List&lt;Host&gt; hostsToRem = new ArrayList&lt;&gt;();
-
-        List&lt;Link&gt; linksToRem = new ArrayList&lt;&gt;();
-
-        List&lt;Link&gt; linksToAdd = new ArrayList&lt;&gt;();
-
+        List<Host> hostsToMod = new ArrayList<>();
+        List<Host> hostsToRem = new ArrayList<>();
+        List<Link> linksToRem = new ArrayList<>();
+        List<Link> linksToAdd = new ArrayList<>();
         synchronized (hosts) {
-
-            log.trace(&quot;Processing nodeConnector &quot; + nodeConnector.getId().toString());
-
+            log.trace("Processing nodeConnector " + nodeConnector.getId().toString());
             HostId hId = Host.createHostId(addrs);
-
             if (hId != null) {
-
                 if (isNodeConnectorInternal(nodeConnector)) {
-
-                    log.trace(&quot;NodeConnector is internal &quot; + nodeConnector.getId().toString());
-
+                    log.trace("NodeConnector is internal " + nodeConnector.getId().toString());
                     removeNodeConnectorFromHost(hostsToMod, hostsToRem, nodeConnector);
-
                     hosts.removeAll(hostsToRem);
-
                     hosts.putAll(hostsToMod);
-
                 } else {
-
-                    log.trace(&quot;NodeConnector is NOT internal &quot; + nodeConnector.getId().toString());
-
+                    log.trace("NodeConnector is NOT internal " + nodeConnector.getId().toString());
                     //新建主机节点
-
                     Host host = new Host(addrs, nodeConnector);
-
                     if (hosts.containsKey(host.getId())) {
-
                         hosts.get(host.getId()).mergeHostWith(host);
-
                     } else {
-
                         hosts.put(host.getId(), host);
-
                     }
-
                    //创建主机与交换机的连接
-
-                    List&lt;Link&gt; newLinks = hosts.get(host.getId()).createLinks(node);
-
+                    List<Link> newLinks = hosts.get(host.getId()).createLinks(node);
                     if (newLinks != null) {
-
                         linksToAdd.addAll(newLinks);
-
                     }
-
                     //保存主机节点信息
-
                     hosts.submit(host.getId());
-
                 }
-
             }
-
         }
-
         //保存link信息
-
         writeDatatoMDSAL(linksToAdd, linksToRem);
-
 }
+```
 
 在hosttracker当中实现主机发现功能，只有主机主动发出报文并经过openflow交换机以packetin形式上送控制器，该报文经过packethandler处理，再到addresstracker，最后由hosttracker写入数据库，该主机节点才能显示到web的拓扑上，因此当我们采用mininet模拟一个哑铃式网络，启动网络是在web的拓扑上只能看到两台交换机，并未出现主机节点，只有pingall之后才能出现主机节点。
 
